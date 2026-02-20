@@ -32,8 +32,8 @@ import {
 // CONFIGURATION - Update these for your model
 // ============================================
 
-const API_ENDPOINT = 'https://your-model-api.com/predict'; // TODO: Replace with your API endpoint
-const USE_MOCK_DATA = true; // Set to false when integrating real model
+const API_ENDPOINT = 'http://localhost:8000/analyze'; // Pointed to our new FastAPI backend
+const USE_MOCK_DATA = false; // Disabled mock data to use real inference
 const ANALYSIS_DELAY = 2500; // Simulated processing time in ms
 
 // ============================================
