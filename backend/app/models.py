@@ -23,6 +23,6 @@ class Diagnosis(Base):
     confidence = Column(Float)
     health_score = Column(Integer)
     image_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     user = relationship("User", back_populates="diagnoses")

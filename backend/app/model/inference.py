@@ -1,17 +1,31 @@
+import logging
 import numpy as np
 import io
 import time
+from PIL import Image, UnidentifiedImageError
+import pillow_avif
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing import image
 from app.model.loader import get_model
 from app.services.disease_mapper import disease_mapper
 
+logger = logging.getLogger("plantcare")
+
 def preprocess_image(image_bytes: bytes) -> np.ndarray:
     """Preprocess the image to 224x224 EXACTLY as in the Colab training script"""
     # 1. Load image using Keras specifically (matches Colab)
-    img = image.load_img(io.BytesIO(image_bytes), target_size=(224, 224))
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        img = img.convert('RGB')
+    except UnidentifiedImageError:
+        raise ValueError("Unsupported image format. Please upload a valid JPEG, PNG, WEBP, or AVIF file.")
+    except Exception as e:
+        # Catch EVERY other possible parsing failure (corrupted bytes, plugin crashes, EOF)
+        raise ValueError(f"Image parsing failed: {str(e)}")
+        
+    img = img.resize((224, 224))
     
-    # 2. Convert to array (this converts to float32 unlike PIL np.array)
+    # 2. Convert to array using Keras (this casts to float32 unlike PIL np.array)
     img_array = image.img_to_array(img)
     
     # 3. Add batch dimension
@@ -58,9 +72,9 @@ def run_inference(image_bytes: bytes) -> dict:
     # ==========================================
     # DEBUGGING: Print exact Colab comparisons
     # ==========================================
-    print("Raw preds:", preds)
-    print("Predicted index:", top_class_index)
-    print("Confidence:", confidence)
+    logger.debug(f"Raw preds: {preds}")
+    logger.debug(f"Predicted index: {top_class_index}")
+    logger.debug(f"Confidence: {confidence}")
     
     # MobileNetV2 was trained on the 38-class PlantVillage dataset.
     # We map all 38 indexes to their corresponding string IDs.
@@ -114,7 +128,7 @@ def run_inference(image_bytes: bytes) -> dict:
     heatmap = generate_heatmap(img_tensor)
     processing_time = int((time.time() - start_time) * 1000)
     
-    print(f"Predicted class index: {top_class_index}, ID mapped: {top_class_id}, Conf: {confidence}")
+    logger.info(f"Predicted class index: {top_class_index}, ID mapped: {top_class_id}, Conf: {confidence}")
     
     return {
         "class_id": top_class_id,

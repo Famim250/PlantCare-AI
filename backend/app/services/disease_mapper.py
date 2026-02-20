@@ -2,6 +2,17 @@ import json
 import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+import google.generativeai as genai
+from app.config import settings
+
+# Configure Gemini once
+if hasattr(settings, 'gemini_api_key') and settings.gemini_api_key:
+    genai.configure(api_key=settings.gemini_api_key)
+else:
+    # Fallback to direct environment variable if pydantic config misses it
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if api_key:
+        genai.configure(api_key=api_key)
 
 class DiseaseMapper:
     def __init__(self):
@@ -25,14 +36,11 @@ class DiseaseMapper:
                 return d
         return None
 
-    def map_prediction_to_disease(self, class_name: str) -> Dict[str, Any]:
+    def map_prediction_to_disease(self, class_name: str, confidence: float = 0.99) -> Dict[str, Any]:
         """
         Maps a prediction class string to a disease object.
-        You should update the mapping logic based on exactly how your
-        keras model outputs classes.
+        If not found in the hardcoded JSON, dynamically generates treatment via Gemini.
         """
-        # Normalize class name to somewhat match our IDs, or create a strict mapping
-        # Let's assume class_name matches the ID directly right now.
         disease = self.get_disease_by_id(class_name)
         
         if disease:
@@ -48,7 +56,7 @@ class DiseaseMapper:
             health_impact = 0
             desc = f"Great news! Your plant appears to be a {formatted_name}."
         else:
-            if any(word in name_lower for word in ["blight", "rot", "wilt", "virus", "esca"]):
+            if any(word in name_lower for word in ["blight", "rot", "wilt", "virus", "esca", "scab"]):
                 severity = "high"
                 health_impact = 60
             elif any(word in name_lower for word in ["spot", "rust", "mildew", "scorch", "mold"]):
@@ -58,7 +66,59 @@ class DiseaseMapper:
                 severity = "medium"
                 health_impact = 30
             
-            desc = f"Our AI detected {formatted_name}. While we don't have a highly detailed treatment guide for this specific condition yet, we recommend monitoring it closely."
+            desc = f"Our AI detected {formatted_name}."
+            
+        # --- DYNAMIC GEMINI GENERATION ---
+        treatment_plan = None
+        if "healthy" not in name_lower:
+            try:
+                gemini = genai.GenerativeModel("gemini-2.5-flash")
+                prompt = f"""
+You are an agriculture expert.
+
+Disease detected: {formatted_name}
+Confidence: {confidence * 100:.1f}%
+
+Return ONLY valid JSON with exactly these keys:
+immediate_action, organic_treatment, chemical_treatment, prevention
+
+Each key must contain an array of 3-5 short actionable steps (strings).
+No extra explanation. Only JSON.
+"""
+                response = gemini.generate_content(prompt)
+                
+                # Clean response text (remove markdown json blocks if present)
+                json_text = response.text.strip()
+                if json_text.startswith("```json"):
+                    json_text = json_text[7:-3].strip()
+                elif json_text.startswith("```"):
+                    json_text = json_text[3:-3].strip()
+                    
+                raw_plan = json.loads(json_text)
+                
+                # Map Gemini keys to our Frontend expected keys
+                treatment_plan = {
+                    "immediate": raw_plan.get("immediate_action", []),
+                    "organic": raw_plan.get("organic_treatment", []),
+                    "chemical": raw_plan.get("chemical_treatment", []),
+                    "prevention": raw_plan.get("prevention", []),
+                    "recoveryTimeline": "Response varies by environmental factors. Monitor new growth closely."
+                }
+                print(f"✅ Successfully generated dynamic treatment for {class_name} via Gemini API.")
+            except Exception as e:
+                print(f"⚠️ Failed to generate Gemini treatment for {class_name}: {e}")
+                
+        # --- END DYNAMIC GENERATION ---
+
+        # If Gemini failed or plant is healthy, use the generic fallback mapping
+        if not treatment_plan:
+            treatment_plan = {
+              "immediate": [f"Observe the {formatted_name} progression carefully."] if "healthy" not in name_lower else ["No immediate action required."],
+              "organic": ["Maintain good airflow and reduce leaf wetness."] if "healthy" not in name_lower else [],
+              "chemical": ["Consult a professional before applying targeted chemicals."] if "healthy" not in name_lower else [],
+              "prevention": ["Practice crop rotation and good garden hygiene."] if "healthy" not in name_lower else ["Ensure adequate sunlight and water."],
+              "recoveryTimeline": "Unknown" if "healthy" not in name_lower else "N/A"
+            }
 
         return {
             "id": class_name,
@@ -73,21 +133,9 @@ class DiseaseMapper:
                 "Monitor for any signs of stress."
             ],
             "severity": severity,
-            "treatment": {
-              "immediate": [f"Observe the {formatted_name} progression carefully."],
-              "organic": ["Maintain good airflow and reduce leaf wetness."],
-              "chemical": ["Consult a professional before applying targeted chemicals."],
-              "prevention": ["Practice crop rotation and good garden hygiene."],
-              "recoveryTimeline": "Unknown"
-            } if "healthy" not in name_lower else {
-              "immediate": ["No immediate action required."],
-              "organic": [],
-              "chemical": [],
-              "prevention": ["Ensure adequate sunlight and water."],
-              "recoveryTimeline": "N/A"
-            },
-            "beginnerDescription": desc,
-            "advancedDescription": f"Model identified {class_name}. Specific treatment protocols for this class are pending in the UI database.",
+            "treatment": treatment_plan,
+            "beginnerDescription": desc + " We've dynamically generated an expert treatment plan specifically for your diagnosis below.",
+            "advancedDescription": f"Model identified {class_name}. Treatment protocol dynamically provisioned via Google Generative AI.",
             "commonRegions": [],
             "seasonalRisk": [],
             "healthScoreImpact": health_impact

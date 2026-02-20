@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+import logging
+import traceback
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 from app.routes import analyze, health, history, auth
 from app.config import settings
 from app.database import Base, engine
+
+logger = logging.getLogger("plantcare")
 
 # Create tables (For dev only. In prod use Alembic)
 Base.metadata.create_all(bind=engine)
@@ -21,6 +26,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler — runs INSIDE CORS so headers are always attached
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    err_msg = traceback.format_exc()
+    logger.error(f"Unhandled exception: {err_msg}")
+    with open("backend_crash.txt", "w") as f:
+        f.write(err_msg)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 # Include Routers
 app.include_router(health.router, tags=["Health"])

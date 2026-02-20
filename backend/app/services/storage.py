@@ -1,24 +1,18 @@
 import os
 import uuid
-import shutil
-from fastapi import UploadFile
 
-def upload_mock_s3(file: UploadFile) -> str:
+def upload_mock_s3(content: bytes, filename: str) -> str:
     """Mocks uploading a file to an S3 bucket and returning a public URL"""
-    # In a real app this would upload to S3 and return the s3 url
-    # For now we'll save it locally to a static folder for demo purposes
-    
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
     
-    file_extension = file.filename.split(".")[-1]
+    # Guard against None or empty filename
+    fname = filename or "upload.jpg"
+    file_extension = fname.split(".")[-1] if "." in fname else "jpg"
     safe_filename = f"{uuid.uuid4()}.{file_extension}"
     file_path = os.path.join(upload_dir, safe_filename)
     
-    # We need to read the file, but we should reset the cursor since the route also reads it
-    file.file.seek(0)
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    file.file.seek(0)
+        buffer.write(content)
         
     return f"/static/{safe_filename}"

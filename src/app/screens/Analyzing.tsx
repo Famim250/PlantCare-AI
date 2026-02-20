@@ -20,17 +20,19 @@ export function Analyzing() {
 
         // Call the AI analysis service
         const result = await analyzeImage({ image: imageUrl, cropType });
-        
+
         // Store result
         sessionStorage.setItem('analysis-result', JSON.stringify(result));
-        
+
         // Navigate to result
         setTimeout(() => {
           navigate('/result');
         }, 500);
       } catch (error) {
         console.error('Analysis failed:', error);
-        navigate('/home');
+        // Show user-visible feedback before redirecting
+        sessionStorage.setItem('analysis-error', 'Analysis failed. Please try again with a different image.');
+        setTimeout(() => navigate('/home'), 2000);
       }
     };
 
@@ -49,10 +51,10 @@ export function Analyzing() {
     <div className="size-full relative overflow-hidden bg-gradient-to-b from-[#E4F3E4] to-[#CDE7C9]">
       {/* Radial glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] bg-[#2E7D32]/10 rounded-full blur-[120px]" />
-      
+
       {/* Animated glow orbs */}
       <motion.div
-        animate={{ 
+        animate={{
           scale: [1, 1.15, 1],
           opacity: [0.08, 0.15, 0.08]
         }}
@@ -60,14 +62,14 @@ export function Analyzing() {
         className="absolute top-1/4 right-10 size-80 bg-[#2E7D32] rounded-full blur-[100px]"
       />
       <motion.div
-        animate={{ 
+        animate={{
           scale: [1.15, 1, 1.15],
           opacity: [0.08, 0.15, 0.08]
         }}
         transition={{ duration: 4, repeat: Infinity }}
         className="absolute bottom-1/4 left-10 size-80 bg-[#388E3C] rounded-full blur-[100px]"
       />
-      
+
       <div className="relative size-full flex flex-col items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0 }}
@@ -102,11 +104,11 @@ export function Analyzing() {
                   </defs>
                 </svg>
               </motion.div>
-              
+
               {/* Center icon */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <motion.div
-                  animate={{ 
+                  animate={{
                     scale: [1, 1.08, 1],
                     rotate: [0, 8, -8, 0]
                   }}

@@ -53,9 +53,11 @@ export interface AnalysisResponse {
   alternatives: AlternativePrediction[];
   healthScore: {
     score: number;
-    leafCondition: number;
-    infectionSeverity: number;
-    colorAnalysis: number;
+    breakdown: {
+      leafCondition: number;
+      infectionSeverity: number;
+      colorAnalysis: number;
+    };
   };
   heatmapRegions: { x: number; y: number; radius: number; intensity: number }[];
   confidenceLevel: 'high' | 'medium' | 'low';
@@ -101,7 +103,15 @@ async function mockAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
 
   // Generate enriched response
   const alternatives = getAlternativePredictions(result.disease, result.confidence);
-  const healthScore = calculateHealthScore(result.disease, result.confidence);
+  const rawHealthScore = calculateHealthScore(result.disease, result.confidence);
+  const healthScore = {
+    score: rawHealthScore.score,
+    breakdown: {
+      leafCondition: rawHealthScore.leafCondition,
+      infectionSeverity: rawHealthScore.infectionSeverity,
+      colorAnalysis: rawHealthScore.colorAnalysis,
+    },
+  };
   const heatmapRegions = result.disease.id === 'healthy' ? [] : generateHeatmapRegions();
 
   const confidenceLevel: 'high' | 'medium' | 'low' =
@@ -127,6 +137,17 @@ async function mockAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
 // REAL MODEL INTEGRATION (implement when ready)
 // ============================================
 
+function dataURItoBlob(dataURI: string): Blob {
+  const byteString = atob(dataURI.split(',')[1]);
+  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
+}
+
 /**
  * Real AI model analysis function
  */
@@ -134,15 +155,18 @@ async function realAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
   try {
     const formData = new FormData();
 
-    // Convert base64 data URL to a File/Blob so FastAPI recognizes it as an UploadFile
-    if (request.image && request.image.startsWith('data:')) {
+    if (request.imageFile) {
+      formData.append('image', request.imageFile);
+    } else if (request.image && request.image.startsWith('data:')) {
+      // Robustly convert data URI to exact binary blob without network fetching
+      const blob = dataURItoBlob(request.image);
+      formData.append('image', blob, 'image.jpg');
+    } else if (request.image && typeof request.image === 'string') {
+      // Fallback for mock URLs like /assets/leaf.jpg
       const response = await fetch(request.image);
+      if (!response.ok) throw new Error("Could not fetch fallback image url");
       const blob = await response.blob();
       formData.append('image', blob, 'image.jpg');
-    } else if (request.imageFile) {
-      formData.append('image', request.imageFile);
-    } else {
-      formData.append('image', request.image);
     }
     // The FastAPI backend expects 'cropType'
     if (request.cropType) {
@@ -167,49 +191,6 @@ async function realAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
     console.error('Error calling AI model:', error);
     throw new Error('Failed to analyze image. Please try again.');
   }
-}
-
-/**
- * Maps the model's output to our Disease type
- */
-function mapModelOutputToDisease(modelOutput: ModelAPIResponse): Disease {
-  const matchedDisease = diseases.find(d =>
-    d.name.toLowerCase() === modelOutput.class.toLowerCase()
-  );
-
-  if (matchedDisease) {
-    return matchedDisease;
-  }
-
-  return {
-    id: modelOutput.class.toLowerCase().replace(/\s+/g, '-'),
-    name: modelOutput.class,
-    cropFamily: 'auto',
-    recommendations: modelOutput.recommendations || [
-      'Consult with a local agricultural expert',
-      'Monitor the plant closely for changes',
-      'Take additional photos if symptoms worsen'
-    ],
-    severity: determineSeverity(modelOutput.confidence),
-    treatment: {
-      immediate: ['Consult a local agricultural extension office'],
-      organic: ['Research organic treatment options for this specific condition'],
-      chemical: ['Consult with an agronomist for appropriate chemical controls'],
-      prevention: ['Practice crop rotation', 'Maintain plant hygiene'],
-      recoveryTimeline: 'Varies by condition — consult an expert for specific guidance.'
-    },
-    beginnerDescription: 'A plant condition has been detected. Follow the recommended steps to help your plant recover.',
-    advancedDescription: `Detected condition: ${modelOutput.class}. Further analysis by a plant pathologist is recommended for definitive identification.`,
-    commonRegions: [],
-    seasonalRisk: [],
-    healthScoreImpact: 30
-  };
-}
-
-function determineSeverity(confidence: number): 'low' | 'medium' | 'high' {
-  if (confidence < 0.7) return 'low';
-  if (confidence < 0.9) return 'medium';
-  return 'high';
 }
 
 // ============================================

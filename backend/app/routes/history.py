@@ -19,7 +19,7 @@ class DiagnosisResponse(BaseModel):
     created_at: datetime.datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 @router.get("/history", response_model=List[DiagnosisResponse])
 def get_history(
