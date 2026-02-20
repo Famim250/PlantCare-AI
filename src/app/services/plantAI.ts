@@ -18,14 +18,14 @@
  * }
  */
 
-import { 
-  getRandomDisease, 
-  getAlternativePredictions, 
-  calculateHealthScore, 
+import {
+  getRandomDisease,
+  getAlternativePredictions,
+  calculateHealthScore,
   generateHeatmapRegions,
-  type Disease, 
+  type Disease,
   type AlternativePrediction,
-  diseases 
+  diseases
 } from '../utils/diseases';
 
 // ============================================
@@ -82,10 +82,10 @@ export interface ModelAPIResponse {
 async function mockAnalyzeImage(request: AnalysisRequest): Promise<AnalysisResponse> {
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, ANALYSIS_DELAY));
-  
+
   // Get primary result
   let result = getRandomDisease();
-  
+
   // If crop-specific, try to filter
   if (request.cropType && request.cropType !== 'auto') {
     const cropDiseases = diseases.filter(d => d.cropFamily === request.cropType);
@@ -98,19 +98,19 @@ async function mockAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
       result.confidence = Math.round(result.confidence * 100) / 100;
     }
   }
-  
+
   // Generate enriched response
   const alternatives = getAlternativePredictions(result.disease, result.confidence);
   const healthScore = calculateHealthScore(result.disease, result.confidence);
   const heatmapRegions = result.disease.id === 'healthy' ? [] : generateHeatmapRegions();
-  
-  const confidenceLevel: 'high' | 'medium' | 'low' = 
-    result.confidence >= 0.9 ? 'high' : 
-    result.confidence >= 0.7 ? 'medium' : 'low';
-  
-  const multiDiseaseWarning = result.confidence < 0.7 || 
+
+  const confidenceLevel: 'high' | 'medium' | 'low' =
+    result.confidence >= 0.9 ? 'high' :
+      result.confidence >= 0.7 ? 'medium' : 'low';
+
+  const multiDiseaseWarning = result.confidence < 0.7 ||
     (alternatives.length > 0 && alternatives[0].confidence > 0.15);
-  
+
   return {
     disease: result.disease,
     confidence: result.confidence,
@@ -133,52 +133,36 @@ async function mockAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
 async function realAnalyzeImage(request: AnalysisRequest): Promise<AnalysisResponse> {
   try {
     const formData = new FormData();
-    formData.append('image', request.image);
-    if (request.cropType) {
-      formData.append('crop_type', request.cropType);
+
+    // Convert base64 data URL to a File/Blob so FastAPI recognizes it as an UploadFile
+    if (request.image && request.image.startsWith('data:')) {
+      const response = await fetch(request.image);
+      const blob = await response.blob();
+      formData.append('image', blob, 'image.jpg');
+    } else if (request.imageFile) {
+      formData.append('image', request.imageFile);
+    } else {
+      formData.append('image', request.image);
     }
-    
+    // The FastAPI backend expects 'cropType'
+    if (request.cropType) {
+      formData.append('cropType', request.cropType);
+    }
+
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
       body: formData,
     });
-    
+
     if (!response.ok) {
       throw new Error(`API request failed: ${response.statusText}`);
     }
-    
-    const data: ModelAPIResponse = await response.json();
-    const disease = mapModelOutputToDisease(data);
-    const confidence = data.confidence;
-    
-    const alternatives = data.top_predictions 
-      ? data.top_predictions.slice(1, 3).map(p => ({
-          disease: mapModelOutputToDisease({ ...p, recommendations: [] }),
-          confidence: p.confidence
-        }))
-      : getAlternativePredictions(disease, confidence);
-    
-    const healthScore = data.health_score 
-      ? { score: data.health_score, leafCondition: 0, infectionSeverity: 0, colorAnalysis: 0 }
-      : calculateHealthScore(disease, confidence);
-    
-    const heatmapRegions = data.heatmap_regions || 
-      (disease.id === 'healthy' ? [] : generateHeatmapRegions());
-    
-    const confidenceLevel: 'high' | 'medium' | 'low' = 
-      confidence >= 0.9 ? 'high' : confidence >= 0.7 ? 'medium' : 'low';
-    
-    return {
-      disease,
-      confidence,
-      processingTime: 0,
-      alternatives,
-      healthScore,
-      heatmapRegions,
-      confidenceLevel,
-      multiDiseaseWarning: confidence < 0.7
-    };
-    
+
+    // Our FastAPI backend already perfectly formats the response 
+    // to match the AnalysisResponse interface!
+    const data = await response.json();
+    return data as AnalysisResponse;
+
   } catch (error) {
     console.error('Error calling AI model:', error);
     throw new Error('Failed to analyze image. Please try again.');
@@ -189,14 +173,14 @@ async function realAnalyzeImage(request: AnalysisRequest): Promise<AnalysisRespo
  * Maps the model's output to our Disease type
  */
 function mapModelOutputToDisease(modelOutput: ModelAPIResponse): Disease {
-  const matchedDisease = diseases.find(d => 
+  const matchedDisease = diseases.find(d =>
     d.name.toLowerCase() === modelOutput.class.toLowerCase()
   );
-  
+
   if (matchedDisease) {
     return matchedDisease;
   }
-  
+
   return {
     id: modelOutput.class.toLowerCase().replace(/\s+/g, '-'),
     name: modelOutput.class,
@@ -239,7 +223,7 @@ export async function analyzeImage(request: AnalysisRequest): Promise<AnalysisRe
   if (USE_MOCK_DATA) {
     return mockAnalyzeImage(request);
   }
-  
+
   return realAnalyzeImage(request);
 }
 
@@ -257,11 +241,11 @@ export function validateImage(file: File): { valid: boolean; error?: string } {
   if (!file.type.startsWith('image/')) {
     return { valid: false, error: 'Please select an image file' };
   }
-  
+
   const maxSize = 10 * 1024 * 1024;
   if (file.size > maxSize) {
     return { valid: false, error: 'Image size must be less than 10MB' };
   }
-  
+
   return { valid: true };
 }

@@ -1,25 +1,26 @@
 import numpy as np
-from PIL import Image
 import io
 import time
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+from tensorflow.keras.preprocessing import image
 from app.model.loader import get_model
 from app.services.disease_mapper import disease_mapper
 
 def preprocess_image(image_bytes: bytes) -> np.ndarray:
-    """Preprocess the image to 224x224 for MobileNetV2"""
-    # 1. Load image from bytes
-    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    """Preprocess the image to 224x224 EXACTLY as in the Colab training script"""
+    # 1. Load image using Keras specifically (matches Colab)
+    img = image.load_img(io.BytesIO(image_bytes), target_size=(224, 224))
     
-    # 2. Resize to what MobileNet expects (224x224)
-    img = img.resize((224, 224))
+    # 2. Convert to array (this converts to float32 unlike PIL np.array)
+    img_array = image.img_to_array(img)
     
-    # 3. Use the official MobileNetV2 preprocess_input function
-    # This automatically scales pixels to [-1, 1] internally ((x / 127.5) - 1)
-    img_array = preprocess_input(np.array(img))
+    # 3. Add batch dimension
+    img_array = np.expand_dims(img_array, axis=0)
     
-    # 4. Add batch dimension (1, 224, 224, 3)
-    return np.expand_dims(img_array, axis=0)
+    # 4. Built-in MobileNetV2 preprocessing (-1 to 1)
+    img_array = preprocess_input(img_array)
+    
+    return img_array
 
 
 def generate_heatmap(image_array: np.ndarray) -> list:
@@ -54,27 +55,62 @@ def run_inference(image_bytes: bytes) -> dict:
     top_class_index = int(np.argmax(preds))
     confidence = float(np.max(preds))
     
-    # Note: We need a mapping from your model's output index (0, 1, 2...) 
-    # to the disease ID string (e.g. 'tomato-early-blight').
-    # For now, we will assume your disease_mapper handles this, OR
-    # we mock it if we don't know the exact order your model was trained in.
+    # ==========================================
+    # DEBUGGING: Print exact Colab comparisons
+    # ==========================================
+    print("Raw preds:", preds)
+    print("Predicted index:", top_class_index)
+    print("Confidence:", confidence)
     
-    # WE ARE ASSUMING THE FOLLOWING MAPPING BASED ON FOLDER ALPHABETICAL ORDER:
-    # 0: healthy
-    # 1: tomato-early-blight
-    # 2: tomato-late-blight
-    # etc...
+    # MobileNetV2 was trained on the 38-class PlantVillage dataset.
+    # We map all 38 indexes to their corresponding string IDs.
+    PLANT_VILLAGE_CLASSES = [
+        "apple-scab", # 0
+        "apple-black-rot", # 1
+        "apple-cedar-rust", # 2
+        "apple-healthy", # 3
+        "blueberry-healthy", # 4
+        "cherry-powdery-mildew", # 5
+        "cherry-healthy", # 6
+        "corn-cercospora-leaf-spot", # 7
+        "corn-rust", # 8
+        "corn-northern-leaf-blight", # 9
+        "corn-healthy", # 10
+        "grape-black-rot", # 11
+        "grape-esca", # 12
+        "grape-leaf-blight", # 13
+        "grape-healthy", # 14
+        "orange-haunglongbing", # 15
+        "peach-bacterial-spot", # 16
+        "peach-healthy", # 17
+        "pepper-bell-bacterial-spot", # 18
+        "pepper-bell-healthy", # 19
+        "potato-early-blight", # 20
+        "potato-late-blight", # 21
+        "potato-healthy", # 22
+        "raspberry-healthy", # 23
+        "soybean-healthy", # 24
+        "squash-powdery-mildew", # 25
+        "strawberry-leaf-scorch", # 26
+        "strawberry-healthy", # 27
+        "tomato-bacterial-spot", # 28
+        "tomato-early-blight", # 29
+        "tomato-late-blight", # 30
+        "tomato-leaf-mold", # 31
+        "tomato-septoria-leaf-spot", # 32
+        "tomato-spider-mites", # 33
+        "tomato-target-spot", # 34
+        "tomato-yellow-leaf-curl-virus", # 35
+        "tomato-mosaic-virus", # 36
+        "tomato-healthy", # 37
+    ]
     
-    # Let's get the keys from our disease JSON to act as a temporary class list.
-    # In reality, you MUST define this list exactly as your Model's `class_indices` mapped during training.
-    class_names = [d["id"] for d in disease_mapper.diseases]
-    
-    # Safety fallback
-    if top_class_index < len(class_names):
-        top_class_id = class_names[top_class_index]
+    # Extract mapped ID safely
+    if top_class_index < len(PLANT_VILLAGE_CLASSES):
+        top_class_id = PLANT_VILLAGE_CLASSES[top_class_index]
     else:
-        top_class_id = "healthy"
-    
+        top_class_id = "unknown"
+        
     heatmap = generate_heatmap(img_tensor)
     processing_time = int((time.time() - start_time) * 1000)
     

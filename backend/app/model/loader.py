@@ -8,7 +8,7 @@ def get_model():
     """Returns the loaded model, loading it if necessary."""
     global _model
     if _model is None:
-        model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), settings.model_path)
+        model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), settings.model_path)
         try:
             print(f"Loading model from {model_path}...")
             _model = tf.keras.models.load_model(model_path)

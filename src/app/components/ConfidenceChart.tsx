@@ -9,41 +9,42 @@ interface ConfidenceChartProps {
   multiDiseaseWarning: boolean;
 }
 
-export function ConfidenceChart({ primary, alternatives, confidenceLevel, multiDiseaseWarning }: ConfidenceChartProps) {
+export function ConfidenceChart({ primary, alternatives = [], confidenceLevel = 'medium', multiDiseaseWarning }: ConfidenceChartProps) {
   const all = [
-    { name: primary.disease.name, confidence: primary.confidence, isPrimary: true },
-    ...alternatives.map(a => ({ name: a.disease.name, confidence: a.confidence, isPrimary: false }))
+    { name: primary?.disease?.name || 'Unknown', confidence: primary?.confidence || 0, isPrimary: true },
+    ...(alternatives || []).map(a => ({ name: a?.disease?.name || 'Unknown', confidence: a?.confidence || 0, isPrimary: false }))
   ];
 
   const confidenceConfig = {
-    high: { 
-      icon: ShieldCheck, 
-      label: 'High Confidence', 
-      color: '#2E7D32', 
-      bg: 'bg-[#2E7D32]/10', 
+    high: {
+      icon: ShieldCheck,
+      label: 'High Confidence',
+      color: '#2E7D32',
+      bg: 'bg-[#2E7D32]/10',
       border: 'border-[#2E7D32]/30',
       description: 'The model is very confident in this diagnosis.'
     },
-    medium: { 
-      icon: ShieldAlert, 
-      label: 'Medium Confidence', 
-      color: '#F57C00', 
-      bg: 'bg-[#F57C00]/10', 
+    medium: {
+      icon: ShieldAlert,
+      label: 'Medium Confidence',
+      color: '#F57C00',
+      bg: 'bg-[#F57C00]/10',
       border: 'border-[#F57C00]/30',
       description: 'The model is moderately confident. Consider additional analysis.'
     },
-    low: { 
-      icon: AlertTriangle, 
-      label: 'Low Confidence', 
-      color: '#D32F2F', 
-      bg: 'bg-[#D32F2F]/10', 
+    low: {
+      icon: AlertTriangle,
+      label: 'Low Confidence',
+      color: '#D32F2F',
+      bg: 'bg-[#D32F2F]/10',
       border: 'border-[#D32F2F]/30',
       description: 'Confidence is low — multiple diseases possible. Expert consultation recommended.'
     }
   };
 
-  const config = confidenceConfig[confidenceLevel];
-  const ConfIcon = config.icon;
+  const safeLevel = (confidenceLevel || 'medium').toLowerCase() as 'high' | 'medium' | 'low';
+  const config = confidenceConfig[safeLevel] || confidenceConfig['medium'];
+  const ConfIcon = config.icon || ShieldAlert;
 
   return (
     <div className="backdrop-blur-xl bg-white/65 border border-white/80 rounded-[1.75rem] p-6 shadow-[0_20px_50px_rgba(46,125,50,0.12)]">
@@ -71,10 +72,10 @@ export function ConfidenceChart({ primary, alternatives, confidenceLevel, multiD
         {all.map((pred, i) => {
           const percentage = Math.round(pred.confidence * 100);
           const barColor = pred.isPrimary ? '#2E7D32' : i === 1 ? '#66BB6A' : '#A5D6A7';
-          
+
           return (
             <motion.div
-              key={pred.name}
+              key={`${pred.name}-${i}`}
               initial={{ opacity: 0, x: -15 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 + i * 0.1 }}

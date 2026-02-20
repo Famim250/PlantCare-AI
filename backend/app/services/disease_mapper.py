@@ -38,25 +38,59 @@ class DiseaseMapper:
         if disease:
             return disease
             
-        # Fallback if unmapped
+        # Fallback if unmapped, dynamically generate a UI object from the string ID!
+        formatted_name = class_name.replace('-', ' ').title()
+        
+        # Guess severity based on keywords
+        name_lower = class_name.lower()
+        if "healthy" in name_lower:
+            severity = "low"
+            health_impact = 0
+            desc = f"Great news! Your plant appears to be a {formatted_name}."
+        else:
+            if any(word in name_lower for word in ["blight", "rot", "wilt", "virus", "esca"]):
+                severity = "high"
+                health_impact = 60
+            elif any(word in name_lower for word in ["spot", "rust", "mildew", "scorch", "mold"]):
+                severity = "medium"
+                health_impact = 35
+            else:
+                severity = "medium"
+                health_impact = 30
+            
+            desc = f"Our AI detected {formatted_name}. While we don't have a highly detailed treatment guide for this specific condition yet, we recommend monitoring it closely."
+
         return {
-            "id": "unknown",
-            "name": f"Unknown Detection ({class_name})",
+            "id": class_name,
+            "name": formatted_name,
             "cropFamily": "auto",
-            "recommendations": [],
-            "severity": "low",
+            "recommendations": [
+                "Isolate your plant to prevent potential spread.",
+                "Consult with a local nursery or agricultural extension.",
+                "Monitor watering and humidity carefully."
+            ] if "healthy" not in name_lower else [
+                "Continue your regular care routine.",
+                "Monitor for any signs of stress."
+            ],
+            "severity": severity,
             "treatment": {
-              "immediate": [],
+              "immediate": [f"Observe the {formatted_name} progression carefully."],
+              "organic": ["Maintain good airflow and reduce leaf wetness."],
+              "chemical": ["Consult a professional before applying targeted chemicals."],
+              "prevention": ["Practice crop rotation and good garden hygiene."],
+              "recoveryTimeline": "Unknown"
+            } if "healthy" not in name_lower else {
+              "immediate": ["No immediate action required."],
               "organic": [],
               "chemical": [],
-              "prevention": [],
-              "recoveryTimeline": "Unknown"
+              "prevention": ["Ensure adequate sunlight and water."],
+              "recoveryTimeline": "N/A"
             },
-            "beginnerDescription": "We detected an anomaly but aren't sure exactly what it is.",
-            "advancedDescription": f"Class '{class_name}' predicted but not found in disease registry.",
+            "beginnerDescription": desc,
+            "advancedDescription": f"Model identified {class_name}. Specific treatment protocols for this class are pending in the UI database.",
             "commonRegions": [],
             "seasonalRisk": [],
-            "healthScoreImpact": 10
+            "healthScoreImpact": health_impact
         }
         
 disease_mapper = DiseaseMapper()

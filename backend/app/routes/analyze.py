@@ -34,8 +34,8 @@ async def get_optional_user(token: Optional[str] = Depends(oauth2_scheme_optiona
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_image(
     image: UploadFile = File(...),
-    cropType: str = Form(...),
-    mode: str = Form("beginner"),
+    cropType: Optional[str] = Form(None),
+    mode: Optional[str] = Form("beginner"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user)
 ):
@@ -44,9 +44,12 @@ async def analyze_image(
         if not image.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File provided is not an image.")
             
-        # 1a. Upload image to 'S3' mock
-        image_url = upload_mock_s3(image)
+        # 1a. Read image bytes into memory FIRST
         image_bytes = await image.read()
+        
+        # 1b. Reset cursor for the mock S3 upload to consume it
+        await image.seek(0)
+        image_url = upload_mock_s3(image)
         
         # 2. Run Inference (Preprocess, Predict, Heatmap)
         inference_result = run_inference(image_bytes)
@@ -88,7 +91,7 @@ async def analyze_image(
             alternatives=alternatives,
             healthScore=health_score_data,
             heatmapRegions=[HeatmapRegion(**h) for h in inference_result["heatmap"]],
-            confidenceLevel="High" if confidence > 0.85 else "Medium" if confidence > 0.6 else "Low",
+            confidenceLevel="high" if confidence > 0.85 else "medium" if confidence > 0.6 else "low",
             multiDiseaseWarning=False
         )
         
