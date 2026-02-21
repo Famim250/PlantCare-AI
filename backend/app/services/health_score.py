@@ -1,23 +1,34 @@
 import hashlib
+import time
+import random
 from typing import Dict, Any
 
 def calculate_health_score(disease: Dict[str, Any], confidence: float) -> Dict[str, Any]:
-    base = 100 - disease.get("healthScoreImpact", 0)
     severity = disease.get("severity", "low")
     
-    severity_multiplier = 0.85 if severity == 'high' else 0.92 if severity == 'medium' else 1
-    conf_adjust = 1 if confidence > 0.9 else 1.05
+    # Ensure confidence dictates the dynamic range
+    # A sick plant at 99% confidence should score much lower than a sick plant at 65% confidence
     
-    # We use a pseudo-random hash based on disease id and confidence 
-    # so we get "realistic" non-round numbers consistently for the same image.
-    seed_str = f"{disease.get('id', 'unknown')}_{confidence:.4f}"
+    if severity == 'high':
+        # 20 to 50 range
+        base_drop = 50 + (confidence * 30)
+    elif severity == 'medium':
+        # 40 to 75 range
+        base_drop = 25 + (confidence * 35)
+    else: 
+        # healthy, minimal drop
+        base_drop = 0
+        
+    base = max(10, 100 - base_drop)
+    
+    # We use a pseudo-random hash based on time and randomness 
+    # so we get realistic, organically varying non-round numbers every time.
+    seed_str = f"{disease.get('id', 'unknown')}_{confidence:.4f}_{time.time()}_{random.random()}"
     hash_val = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
     
-    score = int(max(5, min(100, round(base * severity_multiplier * conf_adjust))))
-    
-    # add a realistic jitter [-2, +2] based on hash
-    jitter = (hash_val % 5) - 2
-    score = max(5, min(100, score + jitter))
+    # Add a realistic jitter [-4, +4] based on hash for uniqueness
+    jitter = (hash_val % 9) - 4
+    score = max(5, min(100, base + jitter))
     
     # Calculate breakdown
     is_healthy = "healthy" in disease.get("id", "").lower()

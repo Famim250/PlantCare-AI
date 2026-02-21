@@ -120,9 +120,18 @@ def run_inference(image_bytes: bytes) -> dict:
     ]
     
     # Extract mapped ID safely. MobileNetV2 can hallucinate random plants (e.g. Blueberry) on non-plant images.
-    # The 0.40 threshold prevents low-confidence guesses from polluting the UI.
-    if top_class_index < len(PLANT_VILLAGE_CLASSES) and confidence >= 0.40:
+    # Softmax naturally pushes out-of-distribution junk to near 1.0 confidence for generic classes like 'blueberry-healthy'.
+    global_threshold = 0.65
+    
+    if top_class_index < len(PLANT_VILLAGE_CLASSES) and confidence >= global_threshold:
         top_class_id = PLANT_VILLAGE_CLASSES[top_class_index]
+        
+        # AGGRESSIVE FILTER: "blueberry-healthy" is the model's favorite hallucination for unknown generic leaves.
+        # Softmax outputs frequently saturate to exactly 1.0 confidence for this class due to float32 rounding.
+        # Since Gemini handles real blueberries perfectly, we aggressively route this MobileNet fallback directly to unknown.
+        if top_class_id == "blueberry-healthy":
+            logger.info(f"Targeted rejection of blueberry-healthy hallucination (confidence {confidence})")
+            top_class_id = "unknown"
     else:
         top_class_id = "unknown"
         

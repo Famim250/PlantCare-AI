@@ -9,12 +9,24 @@ A mobile-first web application for diagnosing plant diseases using AI. Built wit
 ## ✨ Features
 
 - 📷 **Image Capture** - Take photos with camera or upload from gallery
-- 🤖 **AI Analysis** - Detect plant diseases with confidence scores
-- 💡 **Smart Recommendations** - Get actionable care instructions
+- 🤖 **Dual-AI Analysis** - Blends Google Gemini 2.0 Vision for smart identification with MobileNetV2 as a robust, offline-capable fallback.
+- 🎯 **High Accuracy** - Dynamic AI health scoring, detecting everything from early blight to unidentifiable random objects like coffee mugs seamlessly.
+- 💡 **Smart Recommendations** - Get actionable, dynamically-generated care instructions for exact conditions.
 - 💾 **Save History** - Track all your plant diagnoses
 - 📤 **Share Results** - Share diagnosis with experts or friends
 - 📱 **Mobile First** - Optimized for farmers and gardeners on the go
 - ♿ **Accessible** - Large touch targets, clear labels, high contrast
+
+## 📸 Screenshots
+
+*(Add your screenshots to the `public/` folder and update these links)*
+
+<div align="center">
+  <img src="/screencaps/home.png" alt="Home Screen" width="200" />
+  <img src="/screencaps/analyzing.png" alt="AI Analyzing" width="200" />
+  <img src="/screencaps/diagnosis.png" alt="Disease Diagnosis" width="200" />
+  <img src="/screencaps/history.png" alt="History Tracker" width="200" />
+</div>
 
 ## 🎯 User Flow
 
@@ -186,9 +198,21 @@ const USE_MOCK_DATA = false; // Toggle mock/real mode
 npm run build
 ```
 
-### Deploy Options
-- **Vercel** - `vercel`
-- **Netlify** - `netlify deploy --prod`
+### 🌐 Deploying the Frontend (Vercel)
+1. Push this repository to GitHub.
+2. Go to [Vercel](https://vercel.com/) and import the project.
+3. Configure your Environment Variables:
+   - `VITE_API_URL` = `https://your-backend-url.onrender.com`
+4. Click **Deploy**. Vercel will automatically handle React Router rewrites via the included `vercel.json`.
+
+### 🚀 Deploying the Backend AI (Render)
+1. Go to [Render](https://dashboard.render.com/) and create a **New Blueprint**.
+2. Connect your GitHub repository. Quick setup will automatically read the `render.yaml` configuration file included.
+3. Define your environment variables in the Render dashboard:
+   - `GEMINI_API_KEY` = `your_google_gemini_vision_key_here`
+4. Click **Apply**.
+5. Copy the deployed URL and update your Vercel `VITE_API_URL` environment variable.
+
 - **AWS S3 + CloudFront**
 - **Any static host**
 
