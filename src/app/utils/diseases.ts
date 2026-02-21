@@ -459,7 +459,7 @@ export const diseases: Disease[] = [
 export function getRandomDisease(): { disease: Disease; confidence: number } {
   const randomDisease = diseases[Math.floor(Math.random() * diseases.length)];
   const confidence = 0.85 + Math.random() * 0.14; // 85-99% confidence
-  
+
   return {
     disease: randomDisease,
     confidence: Math.round(confidence * 100) / 100
@@ -470,11 +470,11 @@ export function getAlternativePredictions(primary: Disease, primaryConfidence: n
   const remaining = diseases.filter(d => d.id !== primary.id && d.id !== 'healthy');
   const shuffled = remaining.sort(() => Math.random() - 0.5);
   const alternatives = shuffled.slice(0, 2);
-  
+
   const remainingConf = (1 - primaryConfidence);
   const second = remainingConf * (0.5 + Math.random() * 0.3);
   const third = remainingConf - second;
-  
+
   return alternatives.map((d, i) => ({
     disease: d,
     confidence: Math.round((i === 0 ? second : third) * 100) / 100
@@ -490,13 +490,13 @@ export function calculateHealthScore(disease: Disease, confidence: number): {
   const base = 100 - disease.healthScoreImpact;
   const severityMultiplier = disease.severity === 'high' ? 0.85 : disease.severity === 'medium' ? 0.92 : 1;
   const confAdjust = confidence > 0.9 ? 1 : 1.05;
-  
+
   const score = Math.max(5, Math.min(100, Math.round(base * severityMultiplier * confAdjust)));
-  
+
   const leafCondition = disease.id === 'healthy' ? 95 + Math.round(Math.random() * 5) : Math.max(10, score + Math.round((Math.random() - 0.5) * 20));
   const infectionSeverity = disease.id === 'healthy' ? 0 : Math.min(100, 100 - score + Math.round(Math.random() * 15));
   const colorAnalysis = disease.id === 'healthy' ? 90 + Math.round(Math.random() * 10) : Math.max(15, score + Math.round((Math.random() - 0.5) * 15));
-  
+
   return {
     score: Math.min(100, Math.max(0, score)),
     leafCondition: Math.min(100, Math.max(0, leafCondition)),
@@ -508,7 +508,7 @@ export function calculateHealthScore(disease: Disease, confidence: number): {
 export function generateHeatmapRegions(): { x: number; y: number; radius: number; intensity: number }[] {
   const count = 2 + Math.floor(Math.random() * 3);
   const regions: { x: number; y: number; radius: number; intensity: number }[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     regions.push({
       x: 0.2 + Math.random() * 0.6,
@@ -517,8 +517,17 @@ export function generateHeatmapRegions(): { x: number; y: number; radius: number
       intensity: 0.5 + Math.random() * 0.5
     });
   }
-  
+
   return regions;
+}
+
+export interface HealthScore {
+  score: number;
+  breakdown: {
+    leafCondition: number;
+    infectionSeverity: number;
+    colorAnalysis: number;
+  };
 }
 
 export interface DiagnosisResult {
@@ -527,7 +536,7 @@ export interface DiagnosisResult {
   imageUrl: string;
   disease: Disease;
   confidence: number;
-  healthScore?: number;
+  healthScore?: HealthScore | number; // Number for backwards compatibility with old saves
   cropType?: string;
 }
 
@@ -537,11 +546,11 @@ export function saveDiagnosis(result: Omit<DiagnosisResult, 'id' | 'timestamp'>)
     id: Date.now().toString(),
     timestamp: Date.now()
   };
-  
+
   const saved = getSavedDiagnoses();
   saved.unshift(diagnosis);
   localStorage.setItem('plantcare-diagnoses', JSON.stringify(saved));
-  
+
   return diagnosis;
 }
 

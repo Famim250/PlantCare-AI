@@ -2,9 +2,9 @@ import { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaCh
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { 
-  ArrowLeft, 
-  Trash2, 
+import {
+  ArrowLeft,
+  Trash2,
   Calendar,
   AlertCircle,
   Info,
@@ -40,9 +40,16 @@ export function History() {
     toast.success('Diagnosis deleted', { duration: 2000 });
   };
 
-  const filteredDiagnoses = diagnoses.filter(d => 
+  const filteredDiagnoses = diagnoses.filter(d =>
     selectedFilter === 'all' || d.disease.severity === selectedFilter
   );
+
+  // Helper to support old and new healthScore structs
+  const getScoreNumber = (hs: number | { score: number } | undefined, diseaseImpact: number = 30, isHealthy: boolean = false) => {
+    if (typeof hs === 'number') return hs;
+    if (hs && typeof hs === 'object' && 'score' in hs) return hs.score;
+    return isHealthy ? 95 : Math.max(15, 100 - diseaseImpact);
+  };
 
   // Progression data for chart
   const progressionData = useMemo(() => {
@@ -51,7 +58,7 @@ export function History() {
       .map((d, i) => ({
         index: i + 1,
         date: new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        healthScore: d.healthScore ?? (d.disease.id === 'healthy' ? 95 : Math.max(15, 100 - (d.disease.healthScoreImpact ?? 30))),
+        healthScore: getScoreNumber(d.healthScore, d.disease.healthScoreImpact, d.disease.id === 'healthy'),
         confidence: Math.round(d.confidence * 100),
         name: d.disease.name
       }));
@@ -75,13 +82,13 @@ export function History() {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
+
     if (days === 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
     });
@@ -127,7 +134,7 @@ export function History() {
   return (
     <div className="size-full relative overflow-hidden bg-gradient-to-b from-[#E4F3E4] to-[#CDE7C9]">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 size-[500px] bg-[#2E7D32]/8 rounded-full blur-[120px]" />
-      
+
       <div className="relative size-full flex flex-col">
         {/* Header */}
         <header className="backdrop-blur-xl bg-white/60 border-b border-white/80 shadow-sm">
@@ -140,7 +147,7 @@ export function History() {
               <ArrowLeft className="size-6 text-[#1B5E20]" />
             </button>
             <h1 className="text-xl text-[#1B5E20] font-bold">History</h1>
-            
+
             {/* View Toggle */}
             {diagnoses.length > 1 && (
               <div className="flex bg-white border border-[#81C784] rounded-xl p-0.5 shadow-sm">
@@ -167,11 +174,10 @@ export function History() {
               <button
                 key={filter}
                 onClick={() => setSelectedFilter(filter)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedFilter === filter
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedFilter === filter
                     ? 'bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white shadow-[0_12px_30px_rgba(27,94,32,0.35)]'
                     : 'bg-white text-[#1B5E20] border border-[#81C784] hover:bg-[#E8F5E9] shadow-sm'
-                }`}
+                  }`}
               >
                 {filter === 'all' ? 'All' : `${filter.charAt(0).toUpperCase() + filter.slice(1)}`}
               </button>
@@ -208,7 +214,7 @@ export function History() {
             </motion.div>
           ) : (
             <div className="max-w-3xl mx-auto space-y-5">
-              
+
               {/* Progression Chart View */}
               {viewMode === 'chart' && progressionData.length > 1 && (
                 <motion.div
@@ -223,14 +229,13 @@ export function History() {
                         <BarChart3 className="size-5 text-[#2E7D32]" />
                         Health Score Over Time
                       </h3>
-                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                        trend === 'improving' ? 'bg-[#2E7D32]/10 text-[#2E7D32]' :
-                        trend === 'declining' ? 'bg-[#D32F2F]/10 text-[#D32F2F]' :
-                        'bg-[#F57C00]/10 text-[#F57C00]'
-                      }`}>
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${trend === 'improving' ? 'bg-[#2E7D32]/10 text-[#2E7D32]' :
+                          trend === 'declining' ? 'bg-[#D32F2F]/10 text-[#D32F2F]' :
+                            'bg-[#F57C00]/10 text-[#F57C00]'
+                        }`}>
                         {trend === 'improving' ? <TrendingUp className="size-3.5" /> :
-                         trend === 'declining' ? <TrendingDown className="size-3.5" /> :
-                         <Minus className="size-3.5" />}
+                          trend === 'declining' ? <TrendingDown className="size-3.5" /> :
+                            <Minus className="size-3.5" />}
                         {trend === 'improving' ? 'Improving' : trend === 'declining' ? 'Declining' : 'Stable'}
                       </div>
                     </div>
@@ -245,24 +250,24 @@ export function History() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#A5D6A7" strokeOpacity={0.4} />
-                          <XAxis 
-                            dataKey="date" 
+                          <XAxis
+                            dataKey="date"
                             tick={{ fontSize: 10, fill: '#2E7D32', fontWeight: 600 }}
                             axisLine={{ stroke: '#A5D6A7' }}
                             tickLine={false}
                           />
-                          <YAxis 
-                            domain={[0, 100]} 
+                          <YAxis
+                            domain={[0, 100]}
                             tick={{ fontSize: 10, fill: '#2E7D32', fontWeight: 600 }}
                             axisLine={{ stroke: '#A5D6A7' }}
                             tickLine={false}
                             width={30}
                           />
                           <Tooltip content={<CustomTooltip />} />
-                          <Area 
-                            type="monotone" 
-                            dataKey="healthScore" 
-                            stroke="#2E7D32" 
+                          <Area
+                            type="monotone"
+                            dataKey="healthScore"
+                            stroke="#2E7D32"
                             strokeWidth={2.5}
                             fill="url(#healthGradient)"
                             dot={{ fill: '#2E7D32', strokeWidth: 2, stroke: '#fff', r: 4 }}
@@ -273,8 +278,8 @@ export function History() {
                     </div>
 
                     <p className="text-xs font-semibold text-[#2E7D32] text-center mt-3">
-                      {trend === 'improving' 
-                        ? 'Your plants are showing signs of recovery.' 
+                      {trend === 'improving'
+                        ? 'Your plants are showing signs of recovery.'
                         : trend === 'declining'
                           ? 'Consider adjusting your treatment approach.'
                           : 'Health scores are holding steady.'}
@@ -289,7 +294,7 @@ export function History() {
                   {filteredDiagnoses.map((diagnosis, index) => {
                     const config = severityConfig[diagnosis.disease.severity || 'low'];
                     const SeverityIcon = config.icon;
-                    const score = diagnosis.healthScore ?? (diagnosis.disease.id === 'healthy' ? 95 : Math.max(15, 100 - (diagnosis.disease.healthScoreImpact || 30)));
+                    const score = getScoreNumber(diagnosis.healthScore, diagnosis.disease.healthScoreImpact, diagnosis.disease.id === 'healthy');
 
                     return (
                       <motion.div
@@ -308,9 +313,8 @@ export function History() {
                               className="size-full object-cover"
                             />
                             {/* Health Score badge on thumbnail */}
-                            <div className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white shadow-md ${
-                              score >= 70 ? 'bg-[#2E7D32]' : score >= 40 ? 'bg-[#F57C00]' : 'bg-[#D32F2F]'
-                            }`}>
+                            <div className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white shadow-md ${score >= 70 ? 'bg-[#2E7D32]' : score >= 40 ? 'bg-[#F57C00]' : 'bg-[#D32F2F]'
+                              }`}>
                               {score}
                             </div>
                           </div>
@@ -365,7 +369,7 @@ export function History() {
               {viewMode === 'chart' && (
                 <div className="space-y-3">
                   {filteredDiagnoses.map((diagnosis, index) => {
-                    const score = diagnosis.healthScore ?? (diagnosis.disease.id === 'healthy' ? 95 : Math.max(15, 100 - (diagnosis.disease.healthScoreImpact || 30)));
+                    const score = getScoreNumber(diagnosis.healthScore, diagnosis.disease.healthScoreImpact, diagnosis.disease.id === 'healthy');
                     return (
                       <motion.div
                         key={diagnosis.id}
@@ -374,9 +378,8 @@ export function History() {
                         transition={{ delay: 0.3 + index * 0.04 }}
                         className="backdrop-blur-xl bg-white/55 border border-white/70 rounded-2xl p-4 shadow-md flex items-center gap-3"
                       >
-                        <div className={`size-10 rounded-xl flex items-center justify-center text-sm text-white font-bold shadow-md ${
-                          score >= 70 ? 'bg-gradient-to-br from-[#2E7D32] to-[#388E3C]' : score >= 40 ? 'bg-gradient-to-br from-[#F57C00] to-[#FB8C00]' : 'bg-gradient-to-br from-[#D32F2F] to-[#E53935]'
-                        }`}>
+                        <div className={`size-10 rounded-xl flex items-center justify-center text-sm text-white font-bold shadow-md ${score >= 70 ? 'bg-gradient-to-br from-[#2E7D32] to-[#388E3C]' : score >= 40 ? 'bg-gradient-to-br from-[#F57C00] to-[#FB8C00]' : 'bg-gradient-to-br from-[#D32F2F] to-[#E53935]'
+                          }`}>
                           {score}
                         </div>
                         <div className="flex-1 min-w-0">

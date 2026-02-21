@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Depends
-from typing import Optional
+from typing import Optional, Any
 from sqlalchemy.orm import Session
 from app.schemas.response import AnalysisResponse, HeatmapRegion, AlternativePrediction
 from app.services.disease_mapper import disease_mapper
@@ -34,8 +34,21 @@ async def get_optional_user(token: Optional[str] = Depends(oauth2_scheme_optiona
     user = db.query(User).filter(User.email == email).first()
     return user
 
+def safe_int(value: Any, default: int = 0) -> int:
+    """Safely convert strings like '75%' or 'high' to an integer without crashing"""
+    try:
+        if isinstance(value, str):
+            # Extract just digits
+            digits = ''.join(filter(str.isdigit, str(value)))
+            if digits:
+                return int(digits)
+            return default
+        return int(float(value)) if value is not None else default
+    except (ValueError, TypeError):
+        return default
+
 @router.post("/analyze", response_model=AnalysisResponse)
-async def analyze_image(
+def analyze_image(
     image: UploadFile = File(...),
     cropType: Optional[str] = Form(None),
     mode: Optional[str] = Form("beginner"),
@@ -48,7 +61,7 @@ async def analyze_image(
             raise HTTPException(status_code=400, detail="File provided is not an image.")
             
         # 1a. Read exact image bytes once into RAM
-        image_bytes = await image.read()
+        image_bytes = image.file.read()
         logger.info(f"Received image: {len(image_bytes)} bytes, filename={image.filename}")
         
         if not image_bytes:
@@ -74,11 +87,11 @@ async def analyze_image(
             
             # Use Gemini's AI-calculated health scores directly
             health_score_data = {
-                "score": int(gemini_result.get("health_score", 75)),
+                "score": safe_int(gemini_result.get("health_score"), 75),
                 "breakdown": {
-                    "leafCondition": int(gemini_result.get("leaf_condition", 70)),
-                    "infectionSeverity": int(gemini_result.get("infection_severity", 30)),
-                    "colorAnalysis": int(gemini_result.get("color_analysis", 70))
+                    "leafCondition": safe_int(gemini_result.get("leaf_condition"), 70),
+                    "infectionSeverity": safe_int(gemini_result.get("infection_severity"), 30),
+                    "colorAnalysis": safe_int(gemini_result.get("color_analysis"), 70)
                 }
             }
             
@@ -100,6 +113,13 @@ async def analyze_image(
             class_id = inference_result["class_id"]
             confidence = inference_result["confidence"]
             disease_info = disease_mapper.map_prediction_to_disease(class_id, confidence=confidence)
+            
+            # Allow user-selected cropType to override "Unrecognized Image" name
+            if class_id == "unknown" and cropType and cropType != "auto":
+                formatted_crop = cropType.capitalize()
+                disease_info["name"] = f"{formatted_crop} (Unrecognized Condition)"
+                disease_info["beginnerDescription"] = f"We couldn't confidently identify a specific condition, but we've recorded this as a {formatted_crop} based on your selection."
+                
             health_score_data = calculate_health_score(disease_info, confidence)
             heatmap = inference_result["heatmap"]
             processing_time = inference_result.get("processing_time", 1500)
@@ -158,7 +178,7 @@ def _build_disease_from_gemini(gemini: dict) -> dict:
     severity = gemini.get("severity", "medium")
     
     # Calculate health score impact from Gemini's scores
-    health_score = gemini.get("health_score", 75)
+    health_score = safe_int(gemini.get("health_score"), 75)
     health_impact = max(0, 100 - health_score)
     
     is_healthy = "healthy" in disease_id.lower() or "healthy" in name.lower()
@@ -174,6 +194,9 @@ def _build_disease_from_gemini(gemini: dict) -> dict:
     }
     
     display_name = f"{plant} — {name}" if not is_healthy else f"{plant} (Healthy)"
+    
+    if "unrecognized" in plant.lower() or name.lower() in ["unknown", "n/a", "none"]:
+        display_name = plant
     
     return {
         "id": disease_id,

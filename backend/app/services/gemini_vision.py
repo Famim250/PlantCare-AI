@@ -68,6 +68,8 @@ Your JSON must have EXACTLY these keys:
 }
 
 Rules:
+- If the image is NOT a plant or is completely unidentifiable, set plant_name to a short description of what you clearly see (e.g., 'Unrecognized: Coffee Mug', 'Unrecognized: Blurry Leaf'), disease_name to 'Unknown', and disease_id to 'unknown'
+- YOU MUST STILL INCLUDE ALL KEYS even if unrecognized. Use 'low' for severity, and 0 for health_score, leaf_condition, infection_severity, and color_analysis.
 - If the plant is healthy, set severity to "low", infection_severity to 0, health_score to 90-100
 - Be accurate about the plant species — look at leaf shape, color, texture, veins
 - Provide realistic health scores based on what you actually see in the image

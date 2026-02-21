@@ -46,6 +46,31 @@ class DiseaseMapper:
         if disease:
             return disease
             
+        if class_name == "unknown":
+            return {
+                "id": "unknown",
+                "name": "Unrecognized Image",
+                "cropFamily": "auto",
+                "recommendations": [
+                    "Ensure the image is clearly focused on a plant leaf.",
+                    "Make sure there is good lighting without dark shadows.",
+                    "Try using the Gemini Vision feature instead."
+                ],
+                "severity": "medium",
+                "treatment": {
+                    "immediate": ["Take a clearer picture of the plant leaf."],
+                    "organic": [],
+                    "chemical": [],
+                    "prevention": [],
+                    "recoveryTimeline": "N/A"
+                },
+                "beginnerDescription": "We couldn't confidently identify a plant or disease in this image. Please try uploading a clearer photo of just the leaf.",
+                "advancedDescription": f"Model confidence ({confidence*100:.1f}%) was below the threshold for positive identification.",
+                "commonRegions": [],
+                "seasonalRisk": [],
+                "healthScoreImpact": 0
+            }
+            
         # Fallback if unmapped, dynamically generate a UI object from the string ID!
         formatted_name = class_name.replace('-', ' ').title()
         

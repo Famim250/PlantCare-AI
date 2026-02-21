@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { 
-  Share2, 
-  Save, 
-  RotateCcw, 
+import {
+  Share2,
+  Save,
+  RotateCcw,
   AlertTriangle,
   AlertCircle,
   Info,
@@ -45,12 +45,12 @@ export function Result() {
 
     const stored = sessionStorage.getItem('current-image');
     const analysisData = sessionStorage.getItem('analysis-result');
-    
+
     if (!stored || !analysisData) {
       navigate('/home');
       return;
     }
-    
+
     setImageUrl(stored);
     setResult(JSON.parse(analysisData));
   }, [navigate]);
@@ -62,15 +62,15 @@ export function Result() {
 
   const handleSave = () => {
     if (!imageUrl || !result) return;
-    
+
     saveDiagnosis({
       imageUrl,
       disease: result.disease,
       confidence: result.confidence,
-      healthScore: result.healthScore.score,
+      healthScore: result.healthScore,
       cropType: getUserPreferences().selectedCrop
     });
-    
+
     setSaved(true);
     toast.success('Diagnosis saved to history!', { duration: 2000 });
   };
@@ -79,9 +79,9 @@ export function Result() {
     setDataContribution(!dataContribution);
     saveUserPreferences({ dataContribution: !dataContribution });
     toast.success(
-      !dataContribution 
-        ? 'Thank you! Image will help improve PlantCare AI.' 
-        : 'Contribution withdrawn.', 
+      !dataContribution
+        ? 'Thank you! Image will help improve PlantCare AI.'
+        : 'Contribution withdrawn.',
       { duration: 2000 }
     );
   };
@@ -127,7 +127,7 @@ export function Result() {
     <div className="size-full relative overflow-hidden bg-gradient-to-b from-[#E4F3E4] to-[#CDE7C9]">
       {/* Radial glow */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 size-[500px] bg-[#2E7D32]/8 rounded-full blur-[120px]" />
-      
+
       <div className="relative size-full flex flex-col overflow-auto">
         {/* Header */}
         <header className="sticky top-0 z-10 backdrop-blur-xl bg-white/60 border-b border-white/80 shadow-sm">
@@ -139,24 +139,24 @@ export function Result() {
             >
               <ArrowLeft className="size-6 text-[#1B5E20]" />
             </button>
-            
+
             <ModeToggle mode={mode} onChange={handleModeChange} />
-            
+
             <div className="w-10" />
           </div>
         </header>
 
         <main className="relative flex-1 p-4 sm:p-6 pb-8">
           <div className="max-w-2xl mx-auto space-y-5">
-            
+
             {/* ===== HEATMAP IMAGE ===== */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
             >
-              <HeatmapOverlay 
-                imageUrl={imageUrl} 
+              <HeatmapOverlay
+                imageUrl={imageUrl}
                 regions={result.heatmapRegions}
                 isHealthy={isHealthy}
               />
@@ -177,14 +177,13 @@ export function Result() {
                     {disease.severity} severity
                   </span>
                 </div>
-                
-                <div className={`px-3 py-1.5 rounded-full font-bold text-xs text-white shadow-md ${
-                  result.confidence >= 0.9 
-                    ? 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C]' 
-                    : result.confidence >= 0.7 
-                      ? 'bg-gradient-to-r from-[#F57C00] to-[#FB8C00]'
-                      : 'bg-gradient-to-r from-[#D32F2F] to-[#E53935]'
-                }`}>
+
+                <div className={`px-3 py-1.5 rounded-full font-bold text-xs text-white shadow-md ${result.confidence >= 0.9
+                  ? 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C]'
+                  : result.confidence >= 0.7
+                    ? 'bg-gradient-to-r from-[#F57C00] to-[#FB8C00]'
+                    : 'bg-gradient-to-r from-[#D32F2F] to-[#E53935]'
+                  }`}>
                   {Math.round(result.confidence * 100)}% match
                 </div>
               </div>
@@ -213,7 +212,7 @@ export function Result() {
               {/* Expert-only: Scientific Details Expandable */}
               {mode === 'advanced' && disease.pathogenType && (
                 <div className="mt-4">
-                  <button 
+                  <button
                     onClick={() => setShowScience(!showScience)}
                     className="flex items-center gap-2 text-sm font-bold text-[#2E7D32] hover:text-[#1B5E20] transition-colors"
                   >
@@ -221,7 +220,7 @@ export function Result() {
                     Scientific Details
                     {showScience ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
                   </button>
-                  
+
                   {showScience && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
@@ -256,11 +255,11 @@ export function Result() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
-              <HealthScoreGauge 
+              <HealthScoreGauge
                 score={result.healthScore.score}
-                leafCondition={result.healthScore.leafCondition}
-                infectionSeverity={result.healthScore.infectionSeverity}
-                colorAnalysis={result.healthScore.colorAnalysis}
+                leafCondition={result.healthScore.breakdown.leafCondition}
+                infectionSeverity={result.healthScore.breakdown.infectionSeverity}
+                colorAnalysis={result.healthScore.breakdown.colorAnalysis}
               />
             </motion.div>
 
@@ -270,7 +269,7 @@ export function Result() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <ConfidenceChart 
+              <ConfidenceChart
                 primary={{ disease: result.disease, confidence: result.confidence }}
                 alternatives={result.alternatives}
                 confidenceLevel={result.confidenceLevel}
@@ -284,7 +283,7 @@ export function Result() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
             >
-              <TreatmentTabs 
+              <TreatmentTabs
                 treatment={disease.treatment}
                 isHealthy={isHealthy}
               />
@@ -298,7 +297,7 @@ export function Result() {
                 transition={{ delay: 0.3 }}
                 className="backdrop-blur-xl bg-white/65 border border-white/80 rounded-[1.75rem] p-6 shadow-[0_20px_50px_rgba(46,125,50,0.12)]"
               >
-                <button 
+                <button
                   onClick={() => setShowRegion(!showRegion)}
                   className="flex items-center justify-between w-full"
                 >
@@ -369,11 +368,10 @@ export function Result() {
                   </p>
                   <button
                     onClick={handleContribute}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      dataContribution 
-                        ? 'bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white shadow-[0_12px_30px_rgba(27,94,32,0.35)]' 
-                        : 'bg-white border-2 border-[#81C784] text-[#1B5E20] hover:bg-[#E8F5E9] shadow-sm'
-                    }`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${dataContribution
+                      ? 'bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white shadow-[0_12px_30px_rgba(27,94,32,0.35)]'
+                      : 'bg-white border-2 border-[#81C784] text-[#1B5E20] hover:bg-[#E8F5E9] shadow-sm'
+                      }`}
                   >
                     {dataContribution ? '✓ Contributing' : 'Opt In'}
                   </button>
@@ -391,11 +389,10 @@ export function Result() {
               <button
                 onClick={handleSave}
                 disabled={saved}
-                className={`border-2 ${ 
-                  saved
-                    ? 'bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] border-[#1B5E20] text-white shadow-[0_12px_30px_rgba(27,94,32,0.35)]'
-                    : 'bg-white border-[#81C784] hover:bg-[#E8F5E9] text-[#1B5E20] shadow-sm'
-                } py-3.5 px-5 rounded-[0.875rem] hover:shadow-md transition-all flex items-center justify-center gap-2 font-bold disabled:cursor-not-allowed`}
+                className={`border-2 ${saved
+                  ? 'bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] border-[#1B5E20] text-white shadow-[0_12px_30px_rgba(27,94,32,0.35)]'
+                  : 'bg-white border-[#81C784] hover:bg-[#E8F5E9] text-[#1B5E20] shadow-sm'
+                  } py-3.5 px-5 rounded-[0.875rem] hover:shadow-md transition-all flex items-center justify-center gap-2 font-bold disabled:cursor-not-allowed`}
               >
                 <Save className="size-5" />
                 <span>{saved ? 'Saved' : 'Save'}</span>

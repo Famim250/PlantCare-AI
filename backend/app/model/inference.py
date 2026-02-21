@@ -119,8 +119,9 @@ def run_inference(image_bytes: bytes) -> dict:
         "tomato-healthy", # 37
     ]
     
-    # Extract mapped ID safely
-    if top_class_index < len(PLANT_VILLAGE_CLASSES):
+    # Extract mapped ID safely. MobileNetV2 can hallucinate random plants (e.g. Blueberry) on non-plant images.
+    # The 0.40 threshold prevents low-confidence guesses from polluting the UI.
+    if top_class_index < len(PLANT_VILLAGE_CLASSES) and confidence >= 0.40:
         top_class_id = PLANT_VILLAGE_CLASSES[top_class_index]
     else:
         top_class_id = "unknown"
