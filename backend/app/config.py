@@ -7,7 +7,12 @@ class Settings(BaseSettings):
     environment: str = "development"
     model_path: str = "weights/model.keras"
     max_image_size_mb: int = 5
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: List[str] = [
+        "http://localhost:3000", 
+        "http://localhost:5173", 
+        "https://plant-care-ai-coral.vercel.app",
+        "*"
+    ]
     
     # Phase 2: Database Settings
     database_url: str = "sqlite:///./plantcare.db"

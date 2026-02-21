@@ -32,7 +32,8 @@ import {
 // CONFIGURATION - Update these for your model
 // ============================================
 
-const API_ENDPOINT = 'http://localhost:8000/analyze'; // Pointed to our new FastAPI backend
+const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000';
+const API_ENDPOINT = `${API_BASE}/analyze`;
 const USE_MOCK_DATA = false; // Disabled mock data to use real inference
 const ANALYSIS_DELAY = 2500; // Simulated processing time in ms
 
