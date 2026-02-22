@@ -14,3 +14,18 @@ yarn-debug.log*
 yarn-error.log*
 .temp
 .cache
+
+# Backend / Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+.env
+backend/plantcare.db
+backend/uploads/
+backend/weights/model.keras
+.DS_Store
+backend_crash.txt
+error.txt
